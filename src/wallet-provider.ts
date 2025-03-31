@@ -4,7 +4,7 @@ import { IWalletProvider, WalletAddress, Asset, Owner, TransactionVerificationSt
 import { SquadsFactory, ISquadsWalletConfig } from "./squads-factory";
 import { readFileSync } from "fs";
 
-class RealExternalSigner implements IExternalSigner {
+class MockExternalSigner implements IExternalSigner {
     private readonly keypair: Keypair;
 
     constructor(ownerKeypair: Keypair) {
@@ -63,7 +63,7 @@ export class SquadsWalletProvider implements IWalletProvider {
             },
         };
 
-        this.externalSigner = new RealExternalSigner(this.ownerKeypair);
+        this.externalSigner = new MockExternalSigner(this.ownerKeypair);
         return walletAddress;
     }
 
