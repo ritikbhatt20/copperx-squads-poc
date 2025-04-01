@@ -32,19 +32,15 @@ export class SquadsFactory {
     constructor(config: ISquadsWalletConfig) {
         this.connection = new Connection("https://api.devnet.solana.com", "confirmed");
         this.config = config;
-
         this.createKeypair = config.createKeySecret
             ? Keypair.fromSecretKey(Buffer.from(config.createKeySecret, "base64"))
             : Keypair.generate();
-
         if (!config.createKey) {
             this.config.createKey = this.createKeypair.publicKey.toBase58();
             this.config.createKeySecret = Buffer.from(this.createKeypair.secretKey).toString("base64");
         }
-
         const [multisigPda] = multisig.getMultisigPda({ createKey: this.createKeypair.publicKey });
         this.multisigPda = multisigPda;
-
         const [vaultPda] = multisig.getVaultPda({ multisigPda, index: 0 });
         this.vaultPda = vaultPda;
     }
@@ -74,6 +70,7 @@ export class SquadsFactory {
         );
         const configTreasury = programConfig.treasury;
 
+        // Create a multisig wallet with creator (full permissions) and relayer (execute permission)
         const ix = await multisig.instructions.multisigCreateV2({
             createKey: this.createKeypair.publicKey,
             creator: relayer.publicKey,
@@ -99,10 +96,8 @@ export class SquadsFactory {
         tx.add(ix);
         tx.feePayer = relayer.publicKey;
         tx.recentBlockhash = (await this.connection.getLatestBlockhash()).blockhash;
-
         tx.partialSign(relayer);
         tx.partialSign(this.createKeypair);
-
         const txHash = await this.connection.sendRawTransaction(tx.serialize(), { skipPreflight: false });
         await this.connection.confirmTransaction(txHash);
         return txHash;
@@ -123,6 +118,7 @@ export class SquadsFactory {
         const relayer = this.getRelayerKeypair();
         let transferInstruction;
 
+        // Handle SOL or SPL token transfer
         if (tokenAddress === "SOL") {
             transferInstruction = SystemProgram.transfer({
                 fromPubkey: this.vaultPda,
@@ -151,6 +147,7 @@ export class SquadsFactory {
             instructions: [transferInstruction],
         });
 
+        // Create a vault transaction proposal
         const ixTransfer = await multisig.instructions.vaultTransactionCreate({
             multisigPda: this.multisigPda,
             transactionIndex,
@@ -162,12 +159,14 @@ export class SquadsFactory {
             memo: `Transfer ${amount} of ${tokenAddress} to ${recipientAddress}`,
         });
 
+        // Create a proposal for the transaction
         const ixProposal = await multisig.instructions.proposalCreate({
             multisigPda: this.multisigPda,
             transactionIndex,
             creator: this.config.members![0],
         });
 
+        // Approve the proposal (threshold=1, so one approval suffices)
         const ixApprove = await multisig.instructions.proposalApprove({
             multisigPda: this.multisigPda,
             transactionIndex,
@@ -186,6 +185,7 @@ export class SquadsFactory {
     async prepareExecuteTransaction(transactionIndex: bigint): Promise<Transaction> {
         const relayer = this.getRelayerKeypair();
 
+        // Prepare the execution instruction (relayer has Execute permission)
         const ixExecute = await multisig.instructions.vaultTransactionExecute({
             connection: this.connection,
             multisigPda: this.multisigPda,
@@ -222,9 +222,9 @@ export class SquadsFactory {
             return balance.toString();
         } else {
             const tokenPubkey = new PublicKey(tokenAddress);
-            const associatedTokenAddress = getAssociatedTokenAddressSync(tokenPubkey, this.vaultPda, true);
+            const associatedTokenAccount = getAssociatedTokenAddressSync(tokenPubkey, this.vaultPda, true);
             try {
-                const accountInfo = await this.connection.getTokenAccountBalance(associatedTokenAddress);
+                const accountInfo = await this.connection.getTokenAccountBalance(associatedTokenAccount);
                 return accountInfo.value.amount;
             } catch {
                 return "0";

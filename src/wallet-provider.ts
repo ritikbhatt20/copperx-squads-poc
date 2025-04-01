@@ -4,6 +4,7 @@ import { IWalletProvider, WalletAddress, Asset, Owner, TransactionVerificationSt
 import { SquadsFactory, ISquadsWalletConfig } from "./squads-factory";
 import { readFileSync } from "fs";
 
+// Mock external signer to simulate Circle's signing process
 class MockExternalSigner implements IExternalSigner {
     private readonly keypair: Keypair;
 
@@ -63,6 +64,7 @@ export class SquadsWalletProvider implements IWalletProvider {
             },
         };
 
+        // Initialize the external signer with the creator's keypair (simulates Circle)
         this.externalSigner = new MockExternalSigner(this.ownerKeypair);
         return walletAddress;
     }
@@ -113,6 +115,7 @@ export class SquadsWalletProvider implements IWalletProvider {
                 throw new Error("External signer not initialized");
             }
 
+            // Sign the setup transaction with the external signer (creator)
             let serializedSetupTx = setupTransaction.serialize({ requireAllSignatures: false, verifySignatures: false });
             const signature = await this.externalSigner.sign(Buffer.from(serializedSetupTx));
             setupTransaction.addSignature(
@@ -123,6 +126,7 @@ export class SquadsWalletProvider implements IWalletProvider {
             const setupTxHash = await squadsFactory.executeTransaction(setupTransaction.serialize());
             console.log("Setup transaction hash:", setupTxHash);
 
+            // Poll for confirmation of the setup transaction
             let status = await squadsFactory.checkTransactionStatus(setupTxHash);
             let attempts = 0;
             const maxAttempts = 15;
@@ -136,6 +140,7 @@ export class SquadsWalletProvider implements IWalletProvider {
                 throw new Error(`Setup transaction ${setupTxHash} failed to confirm after ${maxAttempts} attempts`);
             }
 
+            // Execute the transaction with the relayer
             const executeTransaction = await squadsFactory.prepareExecuteTransaction(transactionIndex);
             const executeTxHash = await squadsFactory.executeTransaction(executeTransaction.serialize());
             console.log("Execute transaction hash:", executeTxHash);

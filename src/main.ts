@@ -10,6 +10,7 @@ async function runPoC() {
     const connection = walletProvider["connection"];
     const relayerBalance = await connection.getBalance(relayer.publicKey);
     console.log(`Relayer balance: ${relayerBalance / 1e9} SOL`);
+    // Ensure relayer has enough SOL for fees and rent
     if (relayerBalance < 0.05 * 1e9) {
         console.error("Please fund the relayer with at least 0.05 SOL");
         return;
@@ -40,7 +41,7 @@ async function runPoC() {
         SystemProgram.transfer({
             fromPubkey: relayer.publicKey,
             toPubkey: creator.publicKey,
-            lamports: 10000000, // 0.01 SOL
+            lamports: 10000000, // 0.01 SOL to cover rent for VaultTransaction and Proposal
         })
     );
     txCreator.feePayer = relayer.publicKey;

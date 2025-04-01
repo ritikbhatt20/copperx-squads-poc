@@ -17,7 +17,7 @@ export type WalletAddress = {
     id: string;
     address: Address;
     owners?: Owner[];
-    data?: any; // For Squads-specific data (e.g., createKey, threshold)
+    data?: any; // Stores Squads-specific data like createKey and threshold
 };
 
 export enum TransactionVerificationStatus {
@@ -26,6 +26,7 @@ export enum TransactionVerificationStatus {
     Failed = "Failed",
 }
 
+// Interface for wallet provider, implemented by SquadsWalletProvider
 export interface IWalletProvider {
     createWallet(owners?: Owner[]): Promise<WalletAddress>;
     getAddress(walletAddress: WalletAddress): Promise<string>;
@@ -45,7 +46,7 @@ export interface IWalletProvider {
     ): Promise<TransactionVerificationStatus>;
 }
 
-// Mock external signer interface
+// Interface for external signer (e.g., Circle integration)
 export interface IExternalSigner {
     sign(transaction: Buffer): Promise<string>;
 }
